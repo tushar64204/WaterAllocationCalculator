@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Farmer Water Time Calculator</title>
+  <style>
+    body {
+      font-family: 'Mukti Narrow', 'Noto Sans Devanagari', Arial, sans-serif;
+      background: linear-gradient(to bottom right, #f3ffe1, #d4f4c1);
+      padding: 20px;
+      max-width: 600px;
+      margin: auto;
+      border: 2px solid #4CAF50;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 100, 0, 0.2);
+    }
+    h2 {
+      text-align: center;
+      color: #2f6627;
+      font-size: 24px;
+    }
+    label {
+      display: block;
+      margin: 10px 0 5px;
+      font-size: 16px;
+      color: #333;
+    }
+    input {
+      display: block;
+      margin-bottom: 10px;
+      padding: 8px;
+      width: 100%;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+    button {
+      background-color: #4CAF50;
+      color: rgb(0, 0, 0);
+      padding: 10px 15px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    #result {
+      margin-top: 20px;
+      font-weight: bold;
+      font-size: 18px;
+      color: #2f4f4f;
+      background: #e6ffe6;
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #b2d8b2;
+    }
+    .desc {
+      display: none;
+      background: #fffce6;
+      padding: 10px;
+      border: 1px solid #ccc;
+      margin-top: 5px;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+    .describeBtn {
+      background-color: #e6f2ff;
+      border: 1px solid #99c2ff;
+      padding: 4px 8px;
+      cursor: pointer;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+    #nextBtn {
+      display: none;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h2>किसान जल आवंटन कैलकुलेटर</h2>
+
+  <form id="calcForm">
+    <label>पानी देना शुरू करने का समय (HH:MM:SS, 24 घंटे प्रारूप में):
+      <button type="button" class="describeBtn" onclick="toggleDesc('desc1')">विवरण</button>
+      <div id="desc1" class="desc">
+        उदाहरण: यदि किसान ने शाम 7:20 बजे पानी देना शुरू किया, तो यहां <em>19:20:00</em> भरें।
+      </div>
+      <input type="time" step="1" id="startTime" required value="19:20:00">
+    </label>
+
+    <label>किसान की अपनी ज़मीन (एकड़ में):
+      <button type="button" class="describeBtn" onclick="toggleDesc('desc2')">विवरण</button>
+      <div id="desc2" class="desc">
+        हर एकड़ के लिए किसान को 16 मिनट पानी मिलता है। उदाहरण: 4.5 एकड़ × 16 = 72 मिनट।
+      </div>
+      <input type="number" id="ownLand" step="0.1" required>
+    </label>
+
+    <label>अगले किसान से पहले की नाली की लंबाई (एकड़ में):
+      <button type="button" class="describeBtn" onclick="toggleDesc('desc3')">विवरण</button>
+      <div id="desc3" class="desc">
+        नाली को भरने के लिए प्रति एकड़ 4 मिनट जोड़े जाते हैं। उदाहरण: 1.5 एकड़ × 4 = 6 मिनट।
+      </div>
+      <input type="number" id="channelBeforeNext" step="0.1" required>
+    </label>
+
+    <label>अगर पानी दूर ले जाया गया हो, कुल दूरी (एकड़ में):
+      <button type="button" class="describeBtn" onclick="toggleDesc('desc4')">विवरण</button>
+      <div id="desc4" class="desc">
+        दूर की ज़मीन तक पानी भेजा गया हो तो उतने एकड़ × 4 मिनट घटाएं। उदाहरण: 8 एकड़ × 4 = 32 मिनट घटाएं।
+      </div>
+      <input type="number" id="awayAcres" step="0.1" value="0">
+    </label>
+
+    <label>किसी अन्य से लिया गया अतिरिक्त समय (मिनट में):
+      <button type="button" class="describeBtn" onclick="toggleDesc('desc5')">विवरण</button>
+      <div id="desc5" class="desc">
+        अगर किसान ने किसी अन्य किसान से 10 मिनट अतिरिक्त लिए हों, तो यहाँ 10 भरें।
+      </div>
+      <input type="number" id="extraTimeTaken" step="1" value="0">
+    </label>
+
+    <button type="submit">समय निकालें</button>
+    <button type="button" id="nextBtn">→ अगला किसान</button>
+  </form>
+
+  <div id="result"></div>
+
+  <script>
+    let lastEndTime = null;
+
+    function addMinutes(time, minsToAdd) {
+      const [hours, minutes, seconds = 0] = time.split(":" ).map(Number);
+      const date = new Date();
+      date.setHours(hours);
+      date.setMinutes(minutes);
+      date.setSeconds(seconds);
+
+      date.setMinutes(date.getMinutes() + minsToAdd);
+
+      const hr = date.getHours();
+      const min = date.getMinutes();
+      const sec = date.getSeconds();
+
+      const formattedHour = (hr % 12 || 12).toString().padStart(2, '0');
+      const ampm = hr >= 12 ? 'PM' : 'AM';
+
+      const full = `${formattedHour}:${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')} ${ampm}`;
+      const input = `${hr.toString().padStart(2,'0')}:${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+
+      return {
+        full,
+        input,
+        hr: formattedHour,
+        min: String(min).padStart(2, '0'),
+        sec: String(sec).padStart(2, '0'),
+        ampm
+      };
+    }
+
+    function toggleDesc(id) {
+      const el = document.getElementById(id);
+      el.style.display = el.style.display === "none" ? "block" : "none";
+    }
+
+    document.getElementById("calcForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      const startTime = document.getElementById("startTime").value;
+      const ownLand = parseFloat(document.getElementById("ownLand").value);
+      const channelBeforeNext = parseFloat(document.getElementById("channelBeforeNext").value);
+      const awayAcres = parseFloat(document.getElementById("awayAcres").value);
+      const extraTimeTaken = parseFloat(document.getElementById("extraTimeTaken").value);
+
+      const waterTime = ownLand * 16;
+      const channelTime = channelBeforeNext * 4;
+      let totalTime = waterTime + channelTime;
+
+      if (awayAcres > 0) {
+        const awayChannelTime = awayAcres * 4;
+        totalTime -= awayChannelTime;
+      }
+
+      totalTime += extraTimeTaken;
+
+      const { full, input, hr, min, sec, ampm } = addMinutes(startTime, totalTime);
+
+      lastEndTime = input;
+      document.getElementById("result").innerText =
+        `किसान को पानी ${full} तक बंद कर देना चाहिए। (घंटा: ${hr}, मिनट: ${min}, सेकंड: ${sec}, ${ampm})`;
+
+      document.getElementById("nextBtn").style.display = "inline-block";
+    });
+
+    document.getElementById("nextBtn").addEventListener("click", function () {
+      if (lastEndTime) {
+        document.getElementById("startTime").value = lastEndTime;
+        document.getElementById("ownLand").value = "";
+        document.getElementById("channelBeforeNext").value = "";
+        document.getElementById("awayAcres").value = "0";
+        document.getElementById("extraTimeTaken").value = "0";
+        document.getElementById("result").innerText = "";
+        document.getElementById("nextBtn").style.display = "none";
+      }
+    });
+  </script>
+</body>
+</html>
